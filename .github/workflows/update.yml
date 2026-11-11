@@ -22,6 +22,8 @@ jobs:
           DAVINCI_URL: ${{ secrets.DAVINCI_URL }}
           DAVINCI_METHOD: ${{ secrets.DAVINCI_METHOD }}
           DAVINCI_BODY: ${{ secrets.DAVINCI_BODY }}
+          # Zertifikat der Schule ist abgelaufen. Zeile löschen, sobald es erneuert wurde:
+          DAVINCI_VERIFY_SSL: "false"
         run: python generate_ics.py
       - name: Änderungen committen
         run: |
