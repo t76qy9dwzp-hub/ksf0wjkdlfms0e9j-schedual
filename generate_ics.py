@@ -3,10 +3,12 @@ import hashlib
 import json
 import os
 import sys
+import time
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 import requests
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # --- Konfiguration (kommt aus GitHub Secrets / Umgebungsvariablen) ---
 DAVINCI_URL = os.environ.get("DAVINCI_URL", "").strip()
@@ -21,20 +23,40 @@ OUTFILE = "stundenplan.ics"
 
 
 # --------------------------------------------------------------- Abruf
+def with_fresh_timestamp(url):
+    """Ersetzt den Cache-Parameter `_` durch die aktuelle Zeit."""
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "_"]
+    query.append(("_", str(int(time.time() * 1000))))
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 def fetch_json():
     if DAVINCI_JSON_FILE:
         with open(DAVINCI_JSON_FILE, encoding="utf-8") as f:
             return json.load(f)
     if not DAVINCI_URL:
         sys.exit("DAVINCI_URL ist nicht gesetzt (GitHub Secret anlegen).")
-    headers = {"User-Agent": "Mozilla/5.0 (Stundenplan-Kalender)", "Accept": "application/json"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0",
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Accept-Language": "de,en-US;q=0.9,en;q=0.8",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": "https://sbsz-hsp.com/davinci-timetable.html?account=private",
+    }
     if DAVINCI_METHOD == "POST":
         headers["Content-Type"] = DAVINCI_CONTENT_TYPE
         r = requests.post(DAVINCI_URL, data=DAVINCI_BODY.encode("utf-8"), headers=headers, timeout=30)
     else:
-        r = requests.get(DAVINCI_URL, headers=headers, timeout=30)
+        r = requests.get(with_fresh_timestamp(DAVINCI_URL), headers=headers, timeout=30)
     r.raise_for_status()
-    return r.json()
+    try:
+        data = r.json()
+    except ValueError:
+        sys.exit("Antwort ist kein JSON (Key abgelaufen oder falsch?). Anfang: " + r.text[:200])
+    if "result" not in data:
+        sys.exit("Unerwartete Antwort von DaVinci: " + str(data)[:200])
+    return data
 
 
 # ------------------------------------------------------------- Parsing
