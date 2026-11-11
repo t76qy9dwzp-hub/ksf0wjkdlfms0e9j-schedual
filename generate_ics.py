@@ -17,6 +17,12 @@ DAVINCI_BODY = os.environ.get("DAVINCI_BODY", "")
 DAVINCI_CONTENT_TYPE = os.environ.get("DAVINCI_CONTENT_TYPE") or "application/json"
 DAVINCI_JSON_FILE = os.environ.get("DAVINCI_JSON_FILE", "")  # nur zum lokalen Testen
 CLASS_NAME = os.environ.get("DAVINCI_USER") or "H-FI25-1B"
+# "false" schaltet die SSL-Zertifikatsprüfung ab (nur nötig, wenn der Server ein abgelaufenes Zertifikat hat)
+VERIFY_SSL = (os.environ.get("DAVINCI_VERIFY_SSL") or "true").lower() != "false"
+if not VERIFY_SSL:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    print("WARNUNG: SSL-Zertifikatsprüfung ist abgeschaltet.")
 
 TZ = ZoneInfo("Europe/Berlin")
 OUTFILE = "stundenplan.ics"
@@ -46,9 +52,9 @@ def fetch_json():
     }
     if DAVINCI_METHOD == "POST":
         headers["Content-Type"] = DAVINCI_CONTENT_TYPE
-        r = requests.post(DAVINCI_URL, data=DAVINCI_BODY.encode("utf-8"), headers=headers, timeout=30)
+        r = requests.post(DAVINCI_URL, data=DAVINCI_BODY.encode("utf-8"), headers=headers, timeout=30, verify=VERIFY_SSL)
     else:
-        r = requests.get(with_fresh_timestamp(DAVINCI_URL), headers=headers, timeout=30)
+        r = requests.get(with_fresh_timestamp(DAVINCI_URL), headers=headers, timeout=30, verify=VERIFY_SSL)
     r.raise_for_status()
     try:
         data = r.json()
