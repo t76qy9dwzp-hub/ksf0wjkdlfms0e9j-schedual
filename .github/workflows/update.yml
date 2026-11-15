@@ -2,7 +2,7 @@ name: Stundenplan aktualisieren
 
 on:
   schedule:
-    - cron: "0 * * * *"   # jede Stunde
+    - cron: "*/10 * * * *"   # jede Stunde
   workflow_dispatch:       # manuell startbar
 
 permissions:
