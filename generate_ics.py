@@ -26,6 +26,8 @@ if not VERIFY_SSL:
 
 TZ = ZoneInfo("Europe/Berlin")
 OUTFILE = "stundenplan.ics"
+# True = auch entfallene/verlegte Stunden anzeigen
+SHOW_CANCELLED = False
 
 
 # --------------------------------------------------------------- Abruf
@@ -87,15 +89,10 @@ def parse_lessons(data):
             title += f" ({course['remarks']})"
 
         ch = lt.get("changes") or {}
-        cancelled = ch.get("cancelled")
-        if cancelled == "movedAway":
-            prefix = "VERLEGT: "
-        elif cancelled:
-            prefix = "ENTFÄLLT: "
-        elif ch:
-            prefix = "Geändert: "
-        else:
-            prefix = ""
+        # Entfallene oder verlegte Stunden finden nicht statt -> nicht anzeigen
+        if ch.get("cancelled") and not SHOW_CANCELLED:
+            continue
+        prefix = ""
 
         room = ", ".join(lt.get("roomCodes", []))
         info = []
@@ -104,10 +101,6 @@ def parse_lessons(data):
         names = [teachers.get(c, c) for c in lt.get("teacherCodes", [])]
         if names:
             info.append("Lehrkraft: " + ", ".join(names))
-        if ch.get("caption"):
-            info.append(f"Änderung: {ch['caption']}")
-        if ch.get("absentRoomCodes"):
-            info.append("Statt Raum: " + ", ".join(ch["absentRoomCodes"]))
 
         for d in lt.get("dates", []):
             lessons.append({
